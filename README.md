@@ -1,4 +1,7 @@
-# README
+ç# README
+
+This repository is a clone of **pyARTE** (https://github.com/4rtur12t0/pyARTE.git) created by Francisco Javier Roman Escorza (fraromesc) with the propose of resolve the project of the course 
+"Dinamica y Simulación de Robots Manipuladores" of the Robotics Master of the Miguel Hernandez University.
 
 **pyARTE** is a Python toolbox focussed on robotic manipulators.
 
