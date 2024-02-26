@@ -21,6 +21,38 @@ from robots.simulation import Simulation
 from robots.camera import Camera
 
 
+def moore_penrose(J, e):
+    """
+    Compute qd given J and v.
+    If close to singularity, used damped version.
+    """
+    Jp = np.dot(J,J.T)
+    Jp = np.dot(J.T, np.linalg.inv(Jp))
+
+    qd = np.dot(Jp, e)
+
+    manip = np.linalg.det(np.dot(J, J.T))
+    print('Manip is: ', manip)
+
+    return qd
+
+def moore_penrose_damped(J, e):
+    """
+    Compute qd given J and v.
+    If close to singularity, used damped version.
+    """
+    k = 0.01
+    Jp = np.dot(J,J.T) + k*np.identity(6)
+    Jp = np.dot(J.T, np.linalg.inv(Jp))
+
+    qd = np.dot(Jp, e)
+
+    manip = np.linalg.det(np.dot(J, J.T))
+    print('Manip is: ', manip)
+
+    return qd
+
+
 def find_color(robot, camera, frame, piece_index):
     """
     Places the camera on top of the piece.
@@ -72,14 +104,54 @@ def pick(robot, gripper, frame, piece_index):
     # la pieza.
     # Ambas soluciones tienen sus ventajas y desventajas, siendo la segunda más elegante y
     # precisa.
+    
+    # Datos a obtener
+    # Entiendo que también s epuede hacer con la cámara como alternativa
+    t_initPiece = 0 # Tiempo cuando se activo el sensor
+    vc = 0 # Modulo velocidad lineal cinta
+    t_initRobot = 0 # Tiempo en el que el robot se coloca sobre el sensor
+    vr = 0 # Modulo velocidad lineal robot
+    time = 0 # Función que devuelve el tiempo actual del sistema
 
+    # Mover brazo hasta tp1
+    Tmp1 = HomogeneousMatrix(tp1, T_piece.R)
+    robot.moveJ(target_position=Tmp1.pos(), target_orientation=Tmp1.R(), endpoint=True)
+    # Habría que ver si la siguiente linea se realiza cuando se ha llegado al punto deseado o se hace en paralelo ( lo que sería unaputada).
+    
+    # Mover a velocidad Lineal
+    v = np.array([0.0, 0.14, 0])
+    vw = np.array([v, [0, 0, 0]]).flatten()
+    J, _, _ = robot.manipulator_jacobian(q)
+    if np.linalg.det(np.dot(J, J.T)) > .001:
+        Jp = np.dot(J, J.T)
+        Jp = np.dot(J.T, np.linalg.inv(Jp))
+    else:
+        k = 0.01
+        Jp = np.dot(J,J.T) + k*np.identity(6)
+        Jp = np.dot(J.T, np.linalg.inv(Jp))
+    qd = np.dot(Jp, vw)
+    robot.set_joint_target_velocities(qd)
+    
+    # Condicion de estar sobre la pieza
+    # Obtener time
+    t_piece = time - t_initPiece
+    t_robot = time - t_initRobot
+    error_margin = piece_length*0.05
+    piece_length_half = piece_length/2
+    if abs(t_piece*vc - (t_robot*vr - piece_length_half)) > error_margin
+        # Reevaluar t_piece, t_robot y time 
+        t_piece = time - t_initPiece
+        t_robot = time - t_initRobot
 
     # CUANDO LA VENTOSA ESTÉ EXACTAMENTE SOBRE LA PIEZA, gripper.close la asirá (por succión).
     gripper.close()
     tp1 = T_piece.pos() + np.array([0.0, 0.0, 0.2])
 
+    robot.set_joint_target_velocities(np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
+
     robot.moveJ(target_position=tp1, target_orientation=o_piece, qdfactor=1.0)
 
+ 
 def place(robot, gripper, color, indices):
     # EN ESTE MOMENTO, EL ROBOT YA CONOCE:
     # A) El color de la pieza.
@@ -104,14 +176,34 @@ def place(robot, gripper, color, indices):
     # Resta, por tanto, calcular la posición y orientación en la que es necesario dejar
     # la pieza. Esto se hará en base a tp (target point) y especificando la orientacion deseada.
 
+    # Posición de la pieza en el pallet correspondiente. 
+    pi = compute_3D_coordinates(index=index, n_x=2, n_y=3, n_z=2, piece_length=piece_length, piece_gap=piece_gap)    
+    # Pose aproximación a pi 
+    p1 = pi + np.array([0, 0, 0.5 * piece_length])
 
+    # Matrices transformación 
+    # A pallet
+    T0m = HomogeneousMatrix(tp, Euler([0,0,0]))
+    # A p0 en pallet
+    Tmp0 = HomogeneousMatrix(p0, Euler([0, np.pi, 0]))
+    # A p1 en pallet 
+    Tmp1 = HomogeneousMatrix(p1, Euler([0, np.pi, 0]))
+    # Finales 
+    T0 = T0m * Tmp0
+    T1 = T0m * Tmp1
 
+    # Realizar movimientos
+    robot.moveAbsJ(q0, precision=True)
+    robot.moveJ(target_position=T0.pos(), target_orientation=T0.R(), endpoint=True)
+    robot.moveL(target_position=T1.pos(), target_orientation=T1.R(), vmax=0.1, endpoint=True)
+   
     # Cuando el robot haya llegado a la posición y orientación especificadas, se deberá soltar la pieza
     gripper.open(precision=True)
 
 
-
 def pick_and_place():
+
+    # Init simulation
     simulation = Simulation()
     simulation.start()
     robot = RobotABBIRB140(simulation=simulation)
