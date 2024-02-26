@@ -38,11 +38,20 @@ def follow_line():
     # final point reached
     pb = T.pos() + total_time*v
     # linear and angular speed
-    vw = np.array([v, [0, 0, 0]]).flatten()
+    vw = np.array([v, [np.pi, 0, 0]]).flatten()
 
     # COMPLETE EL CÓDIGO PARA SEGUIR LA VELOCIDAD vw EN EL EXTREMO DEL ROBOT
-
-
+    J, _, _ = robot.manipulator_jacobian(q)
+    if np.linalg.det(np.dot(J, J.T)) > .001:
+        Jp = np.dot(J, J.T)
+        Jp = np.dot(J.T, np.linalg.inv(Jp))
+    else:
+        k = 0.01
+        Jp = np.dot(J,J.T) + k*np.identity(6)
+        Jp = np.dot(J.T, np.linalg.inv(Jp))
+    qd = np.dot(Jp, vw)
+    robot.set_joint_target_velocities(qd)
+    robot.wait(100)
     print('POSITION REACHED', T.pos())
     print('ERROR: ', np.linalg.norm(T.pos()-pb))
     simulation.stop()

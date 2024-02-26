@@ -17,6 +17,8 @@ from robots.ur5 import RobotUR5
 
 def delta_q_transpose(J, e):
 
+    alpha = (np.dot(e,np.dot(J,np.dot(J.T, e)))) / (np.dot(J,np.dot(J.T(np.dot(e,np.dot(J,np.dot(J.T, e)))))))
+    dq = alpha*np.dot(J.T,e)
     return dq
 
 def moore_penrose(J, e):
@@ -24,6 +26,11 @@ def moore_penrose(J, e):
     Compute qd given J and v.
     If close to singularity, used damped version.
     """
+    Jp = np.dot(J,J.T)
+    Jp = np.dot(J.T, np.linalg.inv(Jp))
+
+    qd = np.dot(Jp, e)
+
     manip = np.linalg.det(np.dot(J, J.T))
     print('Manip is: ', manip)
 
@@ -34,6 +41,12 @@ def moore_penrose_damped(J, e):
     Compute qd given J and v.
     If close to singularity, used damped version.
     """
+    k = 0.01
+    Jp = np.dot(J,J.T) + k*np.identity(6)
+    Jp = np.dot(J.T, np.linalg.inv(Jp))
+
+    qd = np.dot(Jp, e)
+
     manip = np.linalg.det(np.dot(J, J.T))
     print('Manip is: ', manip)
 
@@ -63,9 +76,14 @@ def inverse_kinematics(robot, target_position, target_orientation, q0):
         # Moore-Penrose básico.
         # Moore-Penrose damped.
         # Traspuesta
+        if np.linalg.det(np.dot(J,J.T)) > .001:
+            qd = moore_penrose(J, e)
+        else:
+            qd = moore_penrose_damped(J,e)
+        q = q + qd
 
         # opcional, aplique una restricción del movimiento
-        #[q, _] = robot.apply_joint_limits(q)
+        [q, _] = robot.apply_joint_limits(q)
     return q
 
 
@@ -87,6 +105,7 @@ def compute_inverse_kinematics():
     T.print_nice()
     # try to find a solution
     q0 = np.array([-0.1, -0.1, -0.1, -0.1, -0.1, -0.1])
+    q0 = np.array([0, 0, 0, 0, 0, 0])
     # EJERCICIO: COMPLETESE ESTA FUNCIÓN
     qinv = inverse_kinematics(robot=robot,
                               target_position=T.pos(),

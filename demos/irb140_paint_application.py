@@ -25,18 +25,19 @@ def paint():
     q0 = np.array([0, 0, 0, 0, 0, 0])
     robot.moveAbsJ(q_target=q0, precision=True)
 
-    target_positions = [[0.5, -0.5, 0.6],
-                        [0.5, 0.5, 0.6],
-                        [0.5, 0.5, 0.3],
-                        [0.5, 0.5, 0.1]]
-    target_orientations = [[0, np.pi/2, 0],
-                           [0, np.pi/2, 0],
-                           [0, np.pi/2, 0],
-                           [0, np.pi/2, 0]]
 
-    for i in range(len(target_positions)):
-        robot.moveJ(target_position=target_positions[i],
+    target_positions = [[0.4, 0.5, 0.1],
+                        [0.4, 0.5, 0.6],
+                        [0.4, 0.5, 1.2]]
+
+    target_orientations = [[0, 0, 0],
+                           [0, np.pi/3, 0],
+                           [0, 2*np.pi/3, 0]]
+    for i in range(10):
+        for i in range(len(target_positions)):
+            robot.moveJ(target_position=target_positions[i],
                     target_orientation=target_orientations[i])
+            robot.wait(10)
 
     simulation.stop()
 

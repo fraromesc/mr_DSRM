@@ -19,12 +19,13 @@ from robots.simulation import Simulation
 
 
 def pick(robot, gripper):
-    q0 = np.array([0, 0, 0, 0, np.pi/2, 0])
+    q0 = np.array([0, 20, 0, 0, np.pi/2, 0])
     tp1 = Vector([0.6, 0.04, 0.26])  # approximation
-    tp2 = Vector([0.6, 0.04, 0.21]) # pick
-    to1 = Euler([0, np.pi, 0])
+    tp2 = Vector([0.6, 0.04, 0.21])  # pick
     to2 = Euler([0, np.pi, 0])
+    to1 = Euler([0, np.pi, 0])
     robot.moveAbsJ(q0, endpoint=True)
+
     gripper.open(precision=True)
     robot.moveJ(target_position=tp1, target_orientation=to1, endpoint=True, precision=False)
     robot.moveL(target_position=tp2, target_orientation=to2, endpoint=True, precision=True, vmax=0.1)
@@ -35,14 +36,19 @@ def pick(robot, gripper):
 def place(robot, gripper, i):
     # define que piece length and a small gap
     piece_length = 0.08
-    piece_gap = 0.02
+    piece_gap = 0.01
     q0 = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     # POSITION AND ORIENTATION OF THE PALLETs
+
+    # Pose Pallet center
     pallet_position = Vector([-0.15, -0.65, 0.15])
     pallet_orientation = Euler([0, 0, 0])
+    # Pose pallet left
+    # pallet_position = Vector([-0.019, 0.410, 0.150])
+    # pallet_orientation = Euler([0, 0, np.pi/6])
     T0m = HomogeneousMatrix(pallet_position, pallet_orientation)
     # POSICION DE LA PIEZA i EN EL SISTEMA MÓVIL m (RELATIVA)
-    pi = compute_3D_coordinates(index=i, n_x=3, n_y=4, n_z=2, piece_length=piece_length, piece_gap=piece_gap)
+    pi = compute_3D_coordinates(index=i, n_x=2, n_y=2, n_z=2, piece_length=piece_length, piece_gap=piece_gap)
     # POSICION p0 INICIAL SOBRE EL PALLET
     p0 = pi + np.array([0, 0, 2.5 * piece_length])
     Tmp0 = HomogeneousMatrix(p0, Euler([0, np.pi, 0]))
@@ -70,20 +76,20 @@ def pick_and_place():
     conveyor_sensor.start(name='/conveyor/prox_sensor')
 
     # Connect to the gripper
-    gripper = GripperRG2(simulation=simulation)
-    gripper.start(name='/IRB140/RG2/RG2_openCloseJoint')
+    # gripper = GripperRG2(simulation=simulation)
+    # gripper.start(name='/IRB140/RG2/RG2_openCloseJoint')
     # set the TCP of the RG2 gripper
-    robot.set_TCP(HomogeneousMatrix(Vector([0, 0, 0.19]), RotationMatrix(np.eye(3))))
+    # robot.set_TCP(HomogeneousMatrix(Vector([0, 0, 0.19]), RotationMatrix(np.eye(3))))
 
     # para usar la ventosa
-    # gripper = SuctionPad(simulation=simulation)
-    # gripper.start()
+    gripper = SuctionPad(simulation=simulation)
+    gripper.start()
     # set the TCP of the suction pad
-    # robot.set_TCP(HomogeneousMatrix(Vector([0, 0.065, 0.11]), Euler([-np.pi/2, 0, 0])))
+    robot.set_TCP(HomogeneousMatrix(Vector([0, 0.065, 0.11]), Euler([-np.pi/2, 0, 0])))
 
     q0 = np.array([0, 0, 0, 0, np.pi / 2, 0])
     robot.moveAbsJ(q0, endpoint=True, precision=True)
-    n_pieces = 24
+    n_pieces = 40
     for i in range(n_pieces):
         while True:
             if conveyor_sensor.is_activated():
